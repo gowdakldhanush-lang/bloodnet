@@ -1,0 +1,13 @@
+{
+    "name": "smart-emergency-blood-network",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Smart Emergency Blood Network - Full Stack Application",
+    "scripts": {
+        "dev": "node start.js",
+        "server": "cd server && node index.js",
+        "client": "cd client && npx vite --host",
+        "build": "cd client && npm run build",
+        "install-all": "cd server && npm install && cd ../client && npm install"
+    }
+}
