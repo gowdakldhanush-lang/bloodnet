@@ -1,8 +1,8 @@
 import emailjs from '@emailjs/browser';
 
-const EMAILJS_SERVICE_ID = 'service_qyf21l2';
-const EMAILJS_TEMPLATE_ID = 'template_oa33k7e';
-const EMAILJS_PUBLIC_KEY = 'Y0EGzQtmuebbrZoKL';
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
 /**
  * Send email notification to eligible donors
