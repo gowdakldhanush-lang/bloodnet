@@ -12,6 +12,7 @@ function RequestBlood() {
         bloodType: '',
         lat: '',
         lng: '',
+        locationText: '',
         radiusKm: '50',
         requesterName: '',
         requesterPhone: '',
@@ -19,28 +20,44 @@ function RequestBlood() {
     });
     const [results, setResults] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
     const [status, setStatus] = useState(null);
     const [emailStatus, setEmailStatus] = useState(null);
 
     const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        if (e.target.name === 'locationText') {
+            setForm({ ...form, locationText: e.target.value, lat: '', lng: '' });
+        } else {
+            setForm({ ...form, [e.target.name]: e.target.value });
+        }
     };
 
     const detectLocation = () => {
         if ('geolocation' in navigator) {
+            setIsLocating(true);
             navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    setForm((prev) => ({
-                        ...prev,
-                        lat: pos.coords.latitude.toFixed(6),
-                        lng: pos.coords.longitude.toFixed(6),
-                    }));
-                    setStatus({ type: 'success', message: '📍 Location detected!' });
+                async (pos) => {
+                    const lat = pos.coords.latitude.toFixed(6);
+                    const lng = pos.coords.longitude.toFixed(6);
+                    try {
+                        const res = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                        const address = res.data.display_name || `${lat}, ${lng}`;
+                        setForm((prev) => ({ ...prev, lat, lng, locationText: address }));
+                        setStatus({ type: 'success', message: '📍 Location detected!' });
+                    } catch (error) {
+                        setForm((prev) => ({ ...prev, lat, lng, locationText: `${lat}, ${lng}` }));
+                        setStatus({ type: 'warning', message: '📍 Location detected, but reverse geocoding failed.' });
+                    } finally {
+                        setIsLocating(false);
+                    }
                 },
                 () => {
-                    setStatus({ type: 'error', message: 'Location detection failed.' });
+                    setIsLocating(false);
+                    setStatus({ type: 'error', message: 'Location detection failed. Please type your address.' });
                 }
             );
+        } else {
+            setStatus({ type: 'error', message: 'Geolocation not supported by your browser.' });
         }
     };
 
@@ -51,8 +68,35 @@ function RequestBlood() {
         setResults(null);
         setEmailStatus(null);
 
+        let finalLat = form.lat;
+        let finalLng = form.lng;
+
+        if (form.locationText && (!form.lat || !form.lng)) {
+            try {
+                const geocodeRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(form.locationText)}&format=json&limit=1`);
+                if (geocodeRes.data && geocodeRes.data.length > 0) {
+                    finalLat = geocodeRes.data[0].lat;
+                    finalLng = geocodeRes.data[0].lon;
+                    setForm(prev => ({ ...prev, lat: finalLat, lng: finalLng }));
+                } else {
+                    setStatus({ type: 'error', message: 'Could not find the entered location. Please try a different address.' });
+                    setLoading(false);
+                    return;
+                }
+            } catch (error) {
+                setStatus({ type: 'error', message: 'Failed to verify location address.' });
+                setLoading(false);
+                return;
+            }
+        } else if (!form.lat || !form.lng) {
+            setStatus({ type: 'error', message: 'Please provide a location or use auto-detect.' });
+            setLoading(false);
+            return;
+        }
+
         try {
-            const res = await axios.post(`${API_URL}/blood-request`, form);
+            const payload = { ...form, lat: finalLat, lng: finalLng };
+            const res = await axios.post(`${API_URL}/blood-request`, payload);
             setResults(res.data);
             setStatus({
                 type: 'success',
@@ -160,35 +204,23 @@ function RequestBlood() {
 
                     <div className="form-group">
                         <label className="form-label">Your Location *</label>
-                        <div className="form-row">
-                            <input
-                                type="number"
-                                name="lat"
-                                value={form.lat}
-                                onChange={handleChange}
-                                className="form-input"
-                                placeholder="Latitude"
-                                step="any"
-                                required
-                            />
-                            <input
-                                type="number"
-                                name="lng"
-                                value={form.lng}
-                                onChange={handleChange}
-                                className="form-input"
-                                placeholder="Longitude"
-                                step="any"
-                                required
-                            />
-                        </div>
+                        <input
+                            type="text"
+                            name="locationText"
+                            value={form.locationText}
+                            onChange={handleChange}
+                            className="form-input"
+                            placeholder="Type an address (e.g., BTM Bengaluru)"
+                            required
+                        />
                         <button
                             type="button"
                             onClick={detectLocation}
                             className="btn btn-secondary btn-sm"
+                            disabled={isLocating}
                             style={{ marginTop: '8px' }}
                         >
-                            📍 Auto-detect Location
+                            {isLocating ? '⏳ Detecting...' : '📍 Auto-detect Location'}
                         </button>
                     </div>
 
