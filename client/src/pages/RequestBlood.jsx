@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import DonorCard from '../components/DonorCard';
+import LocationSearch from '../components/LocationSearch';
 import { notifyDonors } from '../utils/emailService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -25,41 +26,14 @@ function RequestBlood() {
     const [emailStatus, setEmailStatus] = useState(null);
 
     const handleChange = (e) => {
-        if (e.target.name === 'locationText') {
-            setForm({ ...form, locationText: e.target.value, lat: '', lng: '' });
-        } else {
-            setForm({ ...form, [e.target.name]: e.target.value });
-        }
+        setForm({ ...form, [e.target.name]: e.target.value });
     };
 
-    const detectLocation = () => {
-        if ('geolocation' in navigator) {
-            setIsLocating(true);
-            navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                    const lat = pos.coords.latitude.toFixed(6);
-                    const lng = pos.coords.longitude.toFixed(6);
-                    try {
-                        const res = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-                        const address = res.data.display_name || `${lat}, ${lng}`;
-                        setForm((prev) => ({ ...prev, lat, lng, locationText: address }));
-                        setStatus({ type: 'success', message: '📍 Location detected!' });
-                    } catch (error) {
-                        setForm((prev) => ({ ...prev, lat, lng, locationText: `${lat}, ${lng}` }));
-                        setStatus({ type: 'warning', message: '📍 Location detected, but reverse geocoding failed.' });
-                    } finally {
-                        setIsLocating(false);
-                    }
-                },
-                () => {
-                    setIsLocating(false);
-                    setStatus({ type: 'error', message: 'Location detection failed. Please type your address.' });
-                }
-            );
-        } else {
-            setStatus({ type: 'error', message: 'Geolocation not supported by your browser.' });
-        }
+    const handleLocationSelect = (loc) => {
+        setForm({ ...form, locationText: loc.text, lat: loc.lat, lng: loc.lng });
     };
+
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -202,26 +176,12 @@ function RequestBlood() {
                         </div>
                     </div>
 
-                    <div className="form-group">
+                    <div className="form-group" style={{ zIndex: 10 }}>
                         <label className="form-label">Your Location *</label>
-                        <input
-                            type="text"
-                            name="locationText"
-                            value={form.locationText}
-                            onChange={handleChange}
-                            className="form-input"
-                            placeholder="Type an address (e.g., BTM Bengaluru)"
-                            required
+                        <LocationSearch
+                            initialLocationText={form.locationText}
+                            onLocationSelect={handleLocationSelect}
                         />
-                        <button
-                            type="button"
-                            onClick={detectLocation}
-                            className="btn btn-secondary btn-sm"
-                            disabled={isLocating}
-                            style={{ marginTop: '8px' }}
-                        >
-                            {isLocating ? '⏳ Detecting...' : '📍 Auto-detect Location'}
-                        </button>
                     </div>
 
                     <div className="form-group">
