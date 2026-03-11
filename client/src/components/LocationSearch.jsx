@@ -74,6 +74,13 @@ export default function LocationSearch({ onLocationSelect, initialLocationText =
     const detectLocation = () => {
         if ('geolocation' in navigator) {
             setIsLocating(true);
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
             navigator.geolocation.getCurrentPosition(
                 async (pos) => {
                     const lat = pos.coords.latitude;
@@ -93,11 +100,27 @@ export default function LocationSearch({ onLocationSelect, initialLocationText =
                 },
                 (err) => {
                     setIsLocating(false);
-                    alert('Geolocation detection failed. Please type your location manually.');
-                }
+                    let errorMessage = 'Geolocation failed. ';
+                    switch (err.code) {
+                        case err.PERMISSION_DENIED:
+                            errorMessage += 'Please allow location access in your browser settings.';
+                            break;
+                        case err.POSITION_UNAVAILABLE:
+                            errorMessage += 'Location information is unavailable right now.';
+                            break;
+                        case err.TIMEOUT:
+                            errorMessage += 'The request to get user location timed out.';
+                            break;
+                        default:
+                            errorMessage += 'An unknown error occurred.';
+                            break;
+                    }
+                    alert(errorMessage + '\n\nPlease type your location manually in the box.');
+                },
+                options
             );
         } else {
-            alert('Geolocation not supported by your browser.');
+            alert('Geolocation is not supported by your browser.');
         }
     };
 
