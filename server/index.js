@@ -113,6 +113,14 @@ app.post('/register-donor', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields: name, bloodType, gender, email, phone' });
         }
 
+        // Check for duplicates
+        const existingDonorsByEmail = await db.collection('donors').where('email', '==', email).get();
+        const existingDonorsByPhone = await db.collection('donors').where('phone', '==', phone).get();
+
+        if (!existingDonorsByEmail.empty || !existingDonorsByPhone.empty) {
+            return res.status(409).json({ error: 'A donor with this email or phone number is already registered.' });
+        }
+
         const donorData = {
             name,
             bloodType,
@@ -200,7 +208,11 @@ app.post('/blood-request', async (req, res) => {
 
             // Check if in radius
             if (distance <= radius) {
-                eligibleDonors.push({ ...donor, distance: Math.round(distance * 100) / 100 });
+                // Deduplication logic for results strictly by email
+                const isDuplicate = eligibleDonors.some(d => d.email === donor.email || d.phone === donor.phone);
+                if (!isDuplicate) {
+                    eligibleDonors.push({ ...donor, distance: Math.round(distance * 100) / 100 });
+                }
             }
         });
 
